@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+enum ProjectPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TaskStatus {
+  OPEN
+  WORKING
+  CLOSED
+  OVERDUE
+}
+
+model User {
+  id            Int      @id @default(autoincrement())
+  name          String
+  username      String   @unique
+  password      String
+  email         String   @unique
+  phone_number  String?
+  role          Role
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  createdProjects Project[] @relation("ProjectCreatedBy")
+  managedProjects Project[] @relation("ProjectManager")
+  assignedTasks   Task[]    @relation("TaskAssignedTo")
+  assignedByTasks Task[]    @relation("TaskAssignedBy")
+  createdTasks    Task[]    @relation("TaskCreatedBy")
+}
+
+model Project {
+  id           Int             @id @default(autoincrement())
+  project_name String
+  start_date   DateTime?
+  end_date     DateTime?
+  priority     ProjectPriority @default(MEDIUM)
+  manager_id   Int?
+  created_by   Int?
+  created_at   DateTime        @default(now())
+  updated_at   DateTime        @updatedAt
+
+  manager   User?  @relation("ProjectManager", fields: [manager_id], references: [id], onDelete: SetNull)
+  createdBy User?  @relation("ProjectCreatedBy", fields: [created_by], references: [id], onDelete: SetNull)
+  tasks     Task[]
+
+  @@index([manager_id])
+  @@index([created_by])
+}
+
+model Task {
+  id          Int          @id @default(autoincrement())
+  project_id  Int
+  parent_id   Int?
+  title       String
+  description String?
+  status      TaskStatus   @default(OPEN)
+  priority    TaskPriority @default(MEDIUM)
+  start_time  DateTime?
+  end_time    DateTime?
+  assigned_to Int?
+  assigned_by Int?
+  created_by  Int?
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+
+  project    Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  parent     Task?   @relation("TaskHierarchy", fields: [parent_id], references: [id], onDelete: SetNull)
+  children   Task[]  @relation("TaskHierarchy")
+  assignedTo User?   @relation("TaskAssignedTo", fields: [assigned_to], references: [id], onDelete: SetNull)
+  assignedBy User?   @relation("TaskAssignedBy", fields: [assigned_by], references: [id], onDelete: SetNull)
+  createdBy  User?   @relation("TaskCreatedBy", fields: [created_by], references: [id], onDelete: SetNull)
+
+  @@index([project_id])
+  @@index([parent_id])
+  @@index([assigned_to])
+  @@index([assigned_by])
+  @@index([created_by])
+}
